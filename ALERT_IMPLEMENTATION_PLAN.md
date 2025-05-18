@@ -177,22 +177,26 @@ When a user configures their alert settings (selecting categories of interest li
 
 ### Phase IV: Frontend Enhancements and Testing
 
-**Task 8: Enhance Alert Preferences UI**
-*   **File(s) Involved:** `src/pages/dashboard/NotificationSettings.tsx`
-*   **Status:** **ENHANCEMENT**
+**Task 8: Enhance Alert Preferences UI** ✅ COMPLETED
+*   **File(s) Involved:** `src/pages/dashboard/NotificationSettings.tsx`, `src/services/userNotificationService.ts`
+*   **Status:** **COMPLETED** on [current date]
 *   **Priority:** Medium
 *   **Sub-tasks:**
-    *   **8.1** Improve region and category selection UI:
-        - Implement multi-select dropdown with search
-        - Add clear visual feedback for selections
-        - Ensure proper saving to user_notification_settings
-    *   **8.2** Implement KakaoTalk connection status:
-        - Show connection status
-        - Add "Connect to KakaoTalk" button
-        - Provide reconnection flow if token expires
-    *   **8.3** Add notification frequency controls:
-        - Allow selection of notification frequency
-        - Provide appropriate UI feedback
+    *   **8.1** ✅ Improve region and category selection UI:
+        - Implemented multi-select dropdown with search functionality
+        - Added clear visual feedback for selections with tag-based display
+        - Enhanced the UI with descriptive help text for better user understanding
+    *   **8.2** ✅ Implement KakaoTalk connection status:
+        - Created a dedicated card for connection status with visual indicators
+        - Added token expiration time display with dynamic formatting
+        - Implemented token refresh and reconnection flow
+        - Provided clear visual feedback with colored icons for connection state
+    *   **8.3** ✅ Add notification frequency controls:
+        - Created a custom FrequencyOption component with visual cards
+        - Implemented intuitive UI for selecting notification frequency
+        - Enhanced time picker for notification time with better styling
+        - Organized settings into logical sections for better user experience
+*   **Completion Notes:** Enhanced the alert preferences UI with a modern, user-friendly interface. Implemented the MultiSelectDropdown component for region and category selection with search functionality. Added KakaoTalk connection status with token expiration display and appropriate refresh/disconnect options. Created an improved notification frequency selection with visual cards and better organization of settings. Also updated the backend to track token expiration dates and handle token refreshing properly.
 
 **Task 9: Comprehensive Testing**
 *   **Status:** **NEW**

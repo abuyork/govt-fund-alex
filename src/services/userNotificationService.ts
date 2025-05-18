@@ -1,4 +1,3 @@
-import { fetchAPI } from './api';
 import { supabase } from './supabase';
 
 // Define types for the notification settings
@@ -6,6 +5,7 @@ export interface NotificationSettings {
   id?: string;
   userId: string;
   kakaoLinked: boolean;
+  kakaoTokenExpiresAt?: string;
   newProgramsAlert: boolean;
   notificationFrequency: 'daily' | 'weekly' | 'monthly';
   notificationTime: string; // Format: "HH:MM"
@@ -44,6 +44,7 @@ export async function getUserNotificationSettings(): Promise<NotificationSetting
       id: data.id,
       userId: data.user_id,
       kakaoLinked: data.kakao_linked,
+      kakaoTokenExpiresAt: data.kakao_token_expires_at,
       newProgramsAlert: data.new_programs_alert,
       notificationFrequency: data.notification_frequency,
       notificationTime: data.notification_time,
@@ -215,6 +216,11 @@ export async function handleKakaoLinkingCallback(): Promise<{ success: boolean; 
       return { success: false, error: 'No provider token found' };
     }
     
+    // Calculate token expiration date (30 days from now)
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
+    const tokenExpiresAt = expirationDate.toISOString();
+    
     // Get existing settings or create new ones
     const { data: existingSettings } = await supabase
       .from('user_notification_settings')
@@ -231,6 +237,7 @@ export async function handleKakaoLinkingCallback(): Promise<{ success: boolean; 
         .update({ 
           kakao_linked: true,
           kakao_token: providerToken, // Store the token for future use
+          kakao_token_expires_at: tokenExpiresAt, // Set token expiration
           updated_at: new Date().toISOString()
         })
         .eq('id', existingSettings.id);
@@ -242,6 +249,7 @@ export async function handleKakaoLinkingCallback(): Promise<{ success: boolean; 
           user_id: userId,
           kakao_linked: true,
           kakao_token: providerToken,
+          kakao_token_expires_at: tokenExpiresAt, // Set token expiration
           new_programs_alert: true,
           notification_frequency: 'daily',
           notification_time: '09:00',

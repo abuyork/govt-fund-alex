@@ -303,3 +303,39 @@ Please ensure your code follows the existing style and includes appropriate test
 - [Lucide Icons](https://lucide.dev/)
 - [Supabase](https://supabase.io/)
 - [OpenAI](https://openai.com/) 
+
+## Kakao Notification Testing
+
+The application includes scripts for testing Kakao notification delivery:
+
+### Testing Kakao Notifications
+
+Use the following commands to test Kakao notification functionality:
+
+```bash
+# Send a test notification to the default user
+./scripts/send-kakao.sh
+
+# Send a test notification to a specific user (by UUID)
+./scripts/send-kakao.sh ff965fd2-2467-493c-a0d4-ea45afed6f98
+
+# Direct testing with hardcoded values
+npm run send-kakao-direct
+
+# Testing with Supabase integration
+npm run send-kakao -- ff965fd2-2467-493c-a0d4-ea45afed6f98
+```
+
+These scripts help verify that the Kakao notification system is working correctly. They send a test message to a user's KakaoTalk account if they have linked it with the platform.
+
+The test notification scripts are located in the `scripts/` directory:
+- `send-kakao.sh` - Main shell script wrapper
+- `send-kakao-direct.js` - Direct approach with hardcoded values
+- `send-kakao-complete.js` - Supabase integration approach
+- `send-kakao-test.js` - Original testing script
+
+### Requirements for Kakao Notification Testing
+
+- User must have linked their KakaoTalk account
+- User must have a valid Kakao token stored in `user_notification_settings` table
+- Kakao token must not be expired 

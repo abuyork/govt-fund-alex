@@ -27,4 +27,5 @@ export interface SearchResponse {
   page: number;
   pageSize: number;
   timestamp?: number; // Added for caching purposes
+  error?: string; // Added for error handling
 } 

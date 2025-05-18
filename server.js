@@ -1,14 +1,14 @@
+import { createClient } from "@supabase/supabase-js";
+import axios from "axios";
+import compression from "compression";
+import cors from "cors";
+import dotenv from "dotenv";
 import express from "express";
+import fs from "fs";
+import helmet from "helmet";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
-import compression from "compression";
-import helmet from "helmet";
-import axios from "axios";
-import cors from "cors";
-import fs from "fs";
-import { createClient } from "@supabase/supabase-js";
 
 // Load environment variables
 dotenv.config();
@@ -28,7 +28,7 @@ const supabaseServiceKey =
 const supabaseClient = createClient(
   supabaseUrl,
   process.env.VITE_SUPABASE_ANON_PUBLIC_KEY ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5a3VqeHV1ZW1oY3hzcWVlam1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODM2NjYsImV4cCI6MjA1OTY1OTY2Nn0.TnYPRUqdL8_O5yobK13HWWWpffM5tYcx4H2f9k0EeR8"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5a3VqeHV1ZW1oY3hzcWVlam1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODM2NjYsImV4cCI6MjA1OTY1OTY2Nn0.TnYPRUqdL8_O5yobK13HWWWpffM5tYcx4H2f9k0EeR8"
 );
 
 // Middleware to get authenticated user
@@ -234,6 +234,9 @@ app.use(
       "^/api/bizinfo/proxy": "/uss/rss/bizinfoApi.do",
     },
     onProxyReq: (proxyReq, req, res) => {
+      // Mark start time for performance measurement
+      req._startTime = Date.now();
+
       // Pass the API key from environment variable if not provided in the request
       const query = new URLSearchParams(req.query);
       if (!query.has("crtfcKey")) {
@@ -248,29 +251,87 @@ app.use(
       proxyReq.setHeader("Accept", "application/json");
       proxyReq.setHeader("User-Agent", "Mozilla/5.0");
       proxyReq.setHeader("Referer", "https://www.bizinfo.go.kr/");
+      proxyReq.setHeader("Connection", "keep-alive");
 
       console.log(`Proxying request to: ${proxyReq.path}`);
     },
     onProxyRes: (proxyRes, req, res) => {
       // Check content type to ensure it's JSON
       const contentType = proxyRes.headers["content-type"] || "";
+      console.log(`Proxy response status: ${proxyRes.statusCode}, Content-Type: ${contentType}`);
 
-      if (proxyRes.statusCode === 200) {
-        // Only set cache control if response is JSON
-        if (contentType.includes("application/json")) {
-          // Cache successful responses for 5 minutes
-          proxyRes.headers["cache-control"] = "public, max-age=300";
-        } else if (contentType.includes("text/html")) {
-          // Handle HTML responses - convert to a JSON error response
-          let body = "";
+      // Log proxy response time
+      const responseTime = Date.now() - req._startTime;
+      console.log(`Received proxy response: ${proxyRes.statusCode} in ${responseTime}ms`);
 
-          // Collect the response body
-          proxyRes.on("data", (chunk) => {
-            body += chunk;
-          });
+      // Always attempt to convert text/html responses to JSON errors
+      if (contentType.includes("text/html")) {
+        console.log("Received HTML response, converting to JSON error");
+        let body = "";
 
-          // When response ends, replace it with a proper JSON error
-          proxyRes.on("end", () => {
+        // Collect the response body
+        proxyRes.on("data", (chunk) => {
+          body += chunk;
+        });
+
+        // When response ends, replace it with a proper JSON error
+        proxyRes.on("end", () => {
+          // Try direct API call as a fallback
+          console.log("Trying direct API call as fallback...");
+          const apiKey = process.env.VITE_BIZINFO_API_KEY || "2jtmx7";
+
+          // Extract query parameters from the original request
+          const queryParams = new URLSearchParams(req.query);
+          if (!queryParams.has("crtfcKey")) {
+            queryParams.append("crtfcKey", apiKey);
+          }
+
+          // Make direct API call
+          fetch(`https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do?${queryParams.toString()}`, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "Mozilla/5.0",
+              Referer: "https://www.bizinfo.go.kr/",
+            },
+          })
+            .then(directResponse => {
+              if (!directResponse.ok) {
+                throw new Error(`Direct API call failed with status ${directResponse.status}`);
+              }
+              return directResponse.text();
+            })
+            .then(text => {
+              try {
+                // Try to parse the text as JSON
+                const jsonData = JSON.parse(text);
+
+                // Success! Return the JSON data
+                console.log("Direct API call succeeded, returning JSON response");
+
+                // Clear any previous headers
+                for (const header in res.getHeaders()) {
+                  res.removeHeader(header);
+                }
+
+                // Set new headers
+                res.setHeader("Content-Type", "application/json");
+                res.setHeader("Cache-Control", "public, max-age=300");
+
+                res.statusCode = 200;
+                res.end(JSON.stringify(jsonData));
+              } catch (e) {
+                // Failed to parse as JSON, return error
+                console.error("Failed to parse direct API response as JSON:", e);
+                sendErrorResponse();
+              }
+            })
+            .catch(error => {
+              console.error("Error making direct API call:", error);
+              sendErrorResponse();
+            });
+
+          function sendErrorResponse() {
             // Clear any previous headers
             for (const header in res.getHeaders()) {
               res.removeHeader(header);
@@ -278,35 +339,29 @@ app.use(
 
             // Set new headers
             res.setHeader("Content-Type", "application/json");
+            res.setHeader("Cache-Control", "no-store");
 
             // Return a proper JSON error response
             res.statusCode = 502; // Bad Gateway
             res.end(
               JSON.stringify({
                 success: false,
-                error:
-                  "The API returned HTML instead of JSON. Please check if your API key is valid.",
-                message:
-                  "API is currently unavailable or returning invalid format",
+                error: "API returned invalid content type. Expected JSON, got text/html; charset=UTF-8",
+                message: "API 키가 올바른지 확인하거나, 서버 상태를 확인해 주세요.",
+                apiUrl: "https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do"
               })
             );
-          });
-
-          return;
-        }
+          }
+        });
+        return;
+      } else if (proxyRes.statusCode === 200 && contentType.includes("application/json")) {
+        // Set cache control for successful JSON responses
+        proxyRes.headers["cache-control"] = "public, max-age=300";
       }
-
-      // Log proxy response time
-      const responseTime = Date.now() - req._startTime;
-      console.log(
-        `Received proxy response: ${proxyRes.statusCode} in ${responseTime}ms (Content-Type: ${contentType})`
-      );
 
       // Log warning if response time exceeds target
       if (responseTime > 300) {
-        console.warn(
-          `API response time exceeds target (300ms): ${responseTime}ms`
-        );
+        console.warn(`API response time exceeds target (300ms): ${responseTime}ms`);
       }
     },
     onError: (err, req, res) => {
@@ -315,6 +370,7 @@ app.use(
         success: false,
         error: "Failed to connect to Bizinfo API",
         message: err.message,
+        apiUrl: "https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do"
       });
     },
   })
@@ -531,8 +587,8 @@ app.get("/api/subscriptions/:userId", (req, res) => {
         Math.random() > 0.7
           ? "premium"
           : Math.random() > 0.5
-          ? "standard"
-          : "free",
+            ? "standard"
+            : "free",
       startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
       isActive: true,

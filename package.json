@@ -12,7 +12,11 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:notification": "jest --coverage --testPathPattern=tests/unit/notification",
-    "test:working": "jest --config=jest.config.ts tests/unit/notificationMatchingService.test.ts tests/unit/notificationGenerationService.test.ts tests/unit/notificationTaskService.test.ts tests/integration/notificationFlow.test.ts"
+    "test:working": "jest --config=jest.config.ts tests/unit/notificationMatchingService.test.ts tests/unit/notificationGenerationService.test.ts tests/unit/notificationTaskService.test.ts tests/integration/notificationFlow.test.ts",
+    "send-kakao-test": "node scripts/send-kakao-test.js",
+    "send-kakao-direct": "node scripts/send-kakao-direct.js",
+    "send-kakao": "node scripts/send-kakao-complete.js",
+    "send-kakao-raw": "node scripts/send-kakao-raw.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

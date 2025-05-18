@@ -3,7 +3,7 @@
 import { GovSupportProgram, SearchFilters } from '../../../src/types/governmentSupport';
 
 // Mock programs that can be used in tests
-export const mockPrograms: GovSupportProgram[] = [
+export const mockPrograms = [
   {
     id: 'prog-1',
     title: '기술개발 지원 프로그램',
@@ -12,7 +12,7 @@ export const mockPrograms: GovSupportProgram[] = [
     geographicRegions: ['서울'],
     supportArea: '기술개발',
     applicationDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date().toISOString()
+    createdAt: new Date().toISOString()
   },
   {
     id: 'prog-2',
@@ -22,9 +22,9 @@ export const mockPrograms: GovSupportProgram[] = [
     geographicRegions: ['부산'],
     supportArea: '마케팅',
     applicationDeadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date().toISOString()
+    createdAt: new Date().toISOString()
   }
-];
+] as unknown as GovSupportProgram[];
 
 // Mock the searchSupportPrograms function
 export const searchSupportPrograms = jest.fn(async (filters?: SearchFilters): Promise<GovSupportProgram[]> => {
@@ -32,12 +32,17 @@ export const searchSupportPrograms = jest.fn(async (filters?: SearchFilters): Pr
   
   let filtered = [...mockPrograms];
   
-  if (filters.region) {
-    filtered = filtered.filter(p => p.region === filters.region || p.geographicRegions?.includes(filters.region as string));
+  if (filters.regions && Array.isArray(filters.regions) && filters.regions.length > 0) {
+    const regions = filters.regions;
+    filtered = filtered.filter(p => 
+      regions.includes(p.region) || 
+      p.geographicRegions?.some(region => regions.includes(region))
+    );
   }
   
-  if (filters.supportArea) {
-    filtered = filtered.filter(p => p.supportArea === filters.supportArea);
+  if (filters.supportAreas && Array.isArray(filters.supportAreas) && filters.supportAreas.length > 0) {
+    const supportAreas = filters.supportAreas;
+    filtered = filtered.filter(p => supportAreas.includes(p.supportArea));
   }
   
   return filtered;

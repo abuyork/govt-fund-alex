@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1747565659384" clover="3.2.0">
-  <project timestamp="1747565659384" name="All files">
+<coverage generated="1747566379087" clover="3.2.0">
+  <project timestamp="1747566379087" name="All files">
     <metrics statements="726" coveredstatements="192" conditionals="307" coveredconditionals="81" methods="58" coveredmethods="17" elements="1091" coveredelements="290" complexity="0" loc="726" ncloc="726" packages="1" files="6" classes="6"/>
     <file name="kakaoNotificationService.ts" path="/Users/alex/Downloads/government-saas/src/services/kakaoNotificationService.ts">
       <metrics statements="159" coveredstatements="0" conditionals="71" coveredconditionals="0" methods="14" coveredmethods="0"/>

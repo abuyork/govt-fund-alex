@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500;
+}
+
+.hover-card {
+  @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-2;
+}
+
+/* Template preview styles */
+.template-preview {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.template-preview p {
+  margin-bottom: 0.5rem;
+}
+
+.template-preview h1, 
+.template-preview h2, 
+.template-preview h3 {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+/* Card view styles for template previews */
+.h-32.overflow-hidden .template-viewer {
+  max-height: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.h-32.overflow-hidden .template-viewer p {
+  margin-bottom: 0.5rem;
+}
+
+/* Template viewer styles for proper rendering */
+.template-viewer {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+.template-viewer p {
+  margin-bottom: 1rem;
+}
+
+.template-viewer h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 1.5rem 0 1rem;
+}
+
+.template-viewer h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1.2rem 0 0.8rem;
+}
+
+.template-viewer h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1rem 0 0.6rem;
+}
+
+.template-viewer ul, 
+.template-viewer ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.template-viewer li {
+  margin-bottom: 0.5rem;
+}
+
+/* Table styles for templates */
+.template-table-container {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.template-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.template-table th {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.template-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem;
+  vertical-align: top;
+}
+
+.template-table tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.template-table tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Print styles for the template viewer */
+@media print {
+  .template-viewer {
+    font-size: 12pt;
+  }
+  
+  .template-viewer p {
+    margin-bottom: 10pt;
+  }
+  
+  .template-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #000;
+  }
+  
+  .template-table th,
+  .template-table td {
+    border: 1px solid #000;
+    padding: 6pt;
+  }
+}

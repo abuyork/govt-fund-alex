@@ -271,329 +271,238 @@ export async function searchSupportPrograms(
  * Process API response data
  */
 function processApiResponse(data: any, page: number, pageSize: number, filters: SearchFilters = {}): SearchResponse {
-  // Log the data format
-  console.log('Processing API data:', typeof data === 'object' ? 'Object' : typeof data);
-  
-  let items: any[] = [];
-  let totalCount = 0;
-  
   try {
-    // Handle the jsonArray format
-    if (data && data.jsonArray && Array.isArray(data.jsonArray)) {
-      console.log('Processing jsonArray format, length:', data.jsonArray.length);
-      items = data.jsonArray;
+    console.log('Processing API response');
+    console.log('Data structure:', Object.keys(data));
+    
+    // Ensure data has expected structure
+    if (!data || !data.jsonArray) {
+      console.warn('API returned unexpected data structure, using fallback data');
       
-      // Get the total count from the first item
-      if (items.length > 0 && items[0].totCnt) {
-        totalCount = parseInt(items[0].totCnt, 10);
-        console.log(`Retrieved total count from API: ${totalCount}`);
-      } else {
-        totalCount = items.length;
-        console.log(`No total count found, using items length: ${totalCount}`);
-      }
-    } 
-    // Handle the response.body.items format
-    else if (data && data.response && data.response.body) {
-      console.log('Processing response.body format');
-      if (data.response.body.items) {
-        items = Array.isArray(data.response.body.items) 
-          ? data.response.body.items 
-          : [data.response.body.items];
-      }
-      
-      if (data.response.body.totalCount) {
-        totalCount = parseInt(data.response.body.totalCount, 10);
-      } else {
-        totalCount = items.length;
-      }
-    } 
-    // Handle direct array format (some APIs return a direct array)
-    else if (Array.isArray(data)) {
-      console.log('Processing direct array format, length:', data.length);
-      items = data;
-      totalCount = data.length;
-    }
-    // Unknown format or empty response
-    else {
-      console.warn('Unknown API response format or empty results:', data);
-      return { items: [], total: 0, page, pageSize };
-    }
-    
-    // Check if items is empty or null/undefined
-    if (!items || items.length === 0) {
-      console.log('No items found in API response');
-      return { items: [], total: 0, page, pageSize };
-    }
-    
-    // Log the first item to understand its structure
-    if (items.length > 0) {
-      console.log('First item keys:', Object.keys(items[0]).join(', '));
-    }
-    
-    // Map items to our GovSupportProgram type
-    let transformedItems: GovSupportProgram[] = items.map((item: any, index: number) => {
-      try {
-        // Map support area codes to Korean names
-        let supportArea = item.pldirSportRealmLclasCodeNm || '';
-        
-        // Ensure support area is in Korean
-        if (!supportArea || supportArea.match(/^[a-zA-Z\s]+$/)) {
-          // If it's only English or empty, translate based on code
-          const areaCode = item.pldirSportRealmLclasCode || '';
-          const supportAreaCodeMap: Record<string, string> = {
-            '01': '자금',
-            '02': '기술',
-            '03': '인력',
-            '04': '수출',
-            '05': '내수',
-            '06': '창업',
-            '07': '경영',
-            '09': '기타'
-          };
-          supportArea = supportAreaCodeMap[areaCode] || supportArea || '기타';
-        }
-        
-        // Extract announcement date from available fields
-        const announcementDate = item.pblancDe || item.announcementDate || '';
-        
-        return {
-          id: item.pblancId || item.bizId || item.SN || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          title: item.pblancNm || item.bizNm || item.PBLANC_TI || '알 수 없음',
-          region: item.jrsdInsttNm || item.areaNm || item.JRSD_ORGZ_NM || '전국',
-          // Extract geographic regions from hashtags if available
-          geographicRegions: item.hashtags ? extractRegionsFromHashtags(item.hashtags) : ['전국'],
-          supportArea: supportArea,
-          supportAreaId: item.pldirSportRealmLclasCode || item.PBLANC_REALMS || '09',
-          description: item.bsnsSumryCn || item.bizSumryCn || item.PBLANC_CN || '',
-          applicationDeadline: item.reqstBeginEndDe || item.rceptEndDe || item.RCP_BGNDE_DT || '진행중',
-          amount: item.sportAmtContent || item.SPT_FND || '미정',
-          applicationUrl: item.rceptEngnHmpgUrl || item.APPLY_URL || '',
-          isBookmarked: false,
-          announcementDate: announcementDate
-        };
-      } catch (itemError) {
-        console.error(`Error processing item at index ${index}:`, itemError);
-        // Return a placeholder item if there's an error
-        return {
-          id: `error-${Date.now()}-${index}`,
-          title: '데이터 파싱 오류',
-          region: '알 수 없음',
+      // Return fallback data for development/testing
+      return {
+        items: [{
+          id: 'fallback-1',
+          title: '지원사업 데이터를 가져오지 못했습니다',
+          region: '전국',
           geographicRegions: ['전국'],
           supportArea: '기타',
           supportAreaId: '09',
-          description: '지원사업 정보를 불러오는 중 오류가 발생했습니다.',
-          applicationDeadline: '알 수 없음',
-          amount: '알 수 없음',
-          applicationUrl: '',
-          isBookmarked: false,
-          announcementDate: ''
-        };
-      }
-    }).filter(item => item !== null);
-  
-    // Apply client-side filtering if needed for more granular filtering
-    let hasAppliedFilters = false;
-    
-    // Apply support area filter if specified
-    if (filters.supportAreas && filters.supportAreas.length > 0) {
-      console.log('Applying client-side support area filter:', filters.supportAreas);
-      
-      hasAppliedFilters = true;
-      // Create a set for faster lookups
-      const supportAreaSet = new Set(filters.supportAreas);
-      
-      transformedItems = transformedItems.filter(item => {
-        return supportAreaSet.has(item.supportArea);
-      });
-      
-      console.log(`After support area filtering: ${transformedItems.length} items remaining`);
-    }
-    
-    // Apply region filter if specified
-    if (filters.regions && filters.regions.length > 0) {
-      console.log('Applying client-side region filter:', filters.regions);
-      
-      hasAppliedFilters = true;
-      transformedItems = transformedItems.filter(item => {
-        // For region filtering, check if any of the item's regions match any selected regions
-        return item.geographicRegions.some(region => filters.regions?.includes(region));
-      });
-      
-      console.log(`After region filtering: ${transformedItems.length} items remaining`);
-    }
-    
-    // Apply this week only filter if specified
-    if (filters.thisWeekOnly) {
-      console.log('Applying client-side filter for programs announced this week');
-      
-      hasAppliedFilters = true;
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
-      startOfWeek.setHours(0, 0, 0, 0);
-      
-      transformedItems = transformedItems.filter(program => {
-        if (program.announcementDate) {
-          try {
-            const announcementDate = new Date(program.announcementDate);
-            return announcementDate >= startOfWeek;
-          } catch (e) {
-            console.warn(`Could not parse announcement date: ${program.announcementDate}`);
-          }
-        }
-        
-        // Fallback: check application deadline as a proxy for recency
-        if (program.applicationDeadline) {
-          try {
-            const deadline = new Date(program.applicationDeadline);
-            const fourWeeksFromNow = new Date(now);
-            fourWeeksFromNow.setDate(now.getDate() + 28);
-            
-            // If the deadline is more than 4 weeks away, it might be a recently announced program
-            return deadline > fourWeeksFromNow;
-          } catch (e) {
-            console.warn(`Could not parse application deadline: ${program.applicationDeadline}`);
-          }
-        }
-        
-        return false;
-      });
-      
-      console.log(`After this week only filtering: ${transformedItems.length} items remaining`);
-    }
-    
-    // Apply ending soon filter if specified
-    if (filters.endingSoon) {
-      console.log('Applying client-side filter for programs with approaching deadlines');
-      
-      hasAppliedFilters = true;
-      const now = new Date();
-      const oneWeekFromNow = new Date(now);
-      oneWeekFromNow.setDate(now.getDate() + 7); // 7 days from now
-      
-      transformedItems = transformedItems.filter(program => {
-        if (program.applicationDeadline) {
-          try {
-            // Skip programs with "진행중" or other non-date strings
-            if (program.applicationDeadline === '진행중' || 
-                program.applicationDeadline === '상시' || 
-                program.applicationDeadline.includes('상시')) {
-              return false;
-            }
-            
-            // Parse the deadline date, handling various formats
-            let deadline: Date | null = null;
-            
-            // Try to extract date from common formats
-            // Format: YYYYMMDD or YYYY-MM-DD or YYYY.MM.DD
-            const dateMatch = program.applicationDeadline.match(/(\d{4})[-.\/]?(\d{2})[-.\/]?(\d{2})/);
-            if (dateMatch) {
-              const [_, year, month, day] = dateMatch;
-              deadline = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            } else {
-              // Fallback to direct parsing
-              deadline = new Date(program.applicationDeadline);
-            }
-            
-            // Check if deadline is valid and within the next week
-            if (deadline && !isNaN(deadline.getTime())) {
-              return deadline >= now && deadline <= oneWeekFromNow;
-            }
-          } catch (e) {
-            console.warn(`Could not parse application deadline: ${program.applicationDeadline}`);
-          }
-        }
-        
-        return false;
-      });
-      
-      console.log(`After ending soon filtering: ${transformedItems.length} items remaining`);
-    }
-    
-    // If we applied any filters, adjust the total count
-    if (hasAppliedFilters) {
-      // Update total count for pagination
-      totalCount = transformedItems.length;
-      console.log(`Updated total count after client filtering: ${totalCount}`);
-    }
-    
-    // Sort programs in chronological order (newest first)
-    console.log('Sorting programs in chronological order');
-    transformedItems.sort((a, b) => {
-      // Helper function to parse dates safely and handle different formats
-      const getComparableDate = (program: GovSupportProgram) => {
-        // Try different date fields in order of preference
-        if (program.announcementDate) {
-          try {
-            return new Date(program.announcementDate).getTime();
-          } catch (e) {
-            console.warn(`Could not parse announcement date: ${program.announcementDate}`);
-          }
-        }
-        
-        // Fallback to application deadline as a proxy for recency
-        if (program.applicationDeadline) {
-          try {
-            return new Date(program.applicationDeadline).getTime();
-          } catch (e) {
-            console.warn(`Could not parse application deadline: ${program.applicationDeadline}`);
-          }
-        }
-        
-        // If all parsing fails, return a default old date (puts these at the end)
-        return 0;
+          description: '서버에서 데이터를 가져오는데 문제가 발생했습니다. 다시 시도해 주세요.',
+          applicationDeadline: '2025-12-31',
+          amount: '정보 없음',
+          isBookmarked: false
+        }],
+        total: 1,
+        page: 1,
+        pageSize: 1
       };
-      
-      const dateA = getComparableDate(a);
-      const dateB = getComparableDate(b);
-      
-      // Sort newest first (descending order)
-      return dateB - dateA;
-    });
+    }
     
-    // Apply pagination
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, transformedItems.length);
+    // Get programs from response
+    const programs = data.jsonArray;
     
-    // Check for valid pagination
-    if (startIndex >= transformedItems.length && transformedItems.length > 0) {
-      // If requested page is beyond available items, but there are items,
-      // return the first page instead of empty results
-      console.log(`Page ${page} is beyond available items, returning first page instead`);
+    let items: any[] = [];
+    let totalCount = 0;
+    
+    try {
+      // Handle the jsonArray format
+      if (programs && Array.isArray(programs)) {
+        console.log('Processing jsonArray format, length:', programs.length);
+        items = programs;
+        
+        // Get the total count from the first item
+        if (items.length > 0 && items[0].totCnt) {
+          totalCount = parseInt(items[0].totCnt, 10);
+          console.log(`Retrieved total count from API: ${totalCount}`);
+        } else {
+          totalCount = items.length;
+          console.log(`No total count found, using items length: ${totalCount}`);
+        }
+      } 
+      // Handle the response.body.items format
+      else if (programs && programs.response && programs.response.body) {
+        console.log('Processing response.body format');
+        if (programs.response.body.items) {
+          items = Array.isArray(programs.response.body.items) 
+            ? programs.response.body.items 
+            : [programs.response.body.items];
+        }
+        
+        if (programs.response.body.totalCount) {
+          totalCount = parseInt(programs.response.body.totalCount, 10);
+        } else {
+          totalCount = items.length;
+        }
+      } 
+      // Handle direct array format (some APIs return a direct array)
+      else if (Array.isArray(programs)) {
+        console.log('Processing direct array format, length:', programs.length);
+        items = programs;
+        totalCount = programs.length;
+      }
+      // Unknown format or empty response
+      else {
+        console.warn('Unknown API response format or empty results:', programs);
+        return { items: [], total: 0, page, pageSize };
+      }
+    } catch (err) {
+      console.error('Error parsing API response structure:', err);
+      throw err;
+    }
+    
+    // Now, map API data to our format
+    const allPrograms: GovSupportProgram[] = items.map(item => {
+      // Extract deadline date from the "reqstBeginEndDe" field
+      // Format is typically: "20250430 ~ 20250520" (YYYYMMDD)
+      let applicationDeadline = '정보 없음';
+      if (item.reqstBeginEndDe) {
+        const match = item.reqstBeginEndDe.match(/~\s*(\d{8})/);
+        if (match && match[1]) {
+          const dateStr = match[1];
+          try {
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            applicationDeadline = `${year}-${month}-${day}`;
+          } catch (e) {
+            console.error('Failed to parse deadline date:', dateStr, e);
+          }
+        }
+      }
+      
+      // Extract regions from hashtags
+      const hashtagRegions = item.hashtags ? extractRegionsFromHashtags(item.hashtags) : [];
+      // Use jrsdInsttNm as main region (this is the institution's region, like "서울특별시")
+      const region = item.jrsdInsttNm || '전국';
+      
+      // Combine any geographic regions
+      const geographicRegions = Array.from(new Set([
+        ...hashtagRegions,
+        region.includes('특별') ? region.replace('특별', '') : region // Clean up "특별" from names
+      ])).filter(Boolean);
       
       return {
-        items: transformedItems.slice(0, pageSize),
-        total: totalCount,  
-        page: 1,
-        pageSize
+        id: item.pblancId || `program-${Math.random().toString(36).substring(2, 11)}`,
+        title: item.pblancNm || '제목 없음',
+        region: region,
+        geographicRegions: geographicRegions.length > 0 ? geographicRegions : ['전국'],
+        supportArea: item.pldirSportRealmLclasCodeNm || '기타',
+        supportAreaId: item.pldirSportRealmLclasCode || '09',
+        description: item.bsnsSumryCn || '내용 없음',
+        applicationDeadline: applicationDeadline,
+        amount: '지원금액 정보 없음', // Not provided in this API
+        applicationUrl: item.pblancUrl ? `https://www.bizinfo.go.kr${item.pblancUrl}` : undefined,
+        announcementDate: item.creatPnttm ? item.creatPnttm.split(' ')[0] : undefined
       };
+    });
+    
+    // Client-side filtering based on filters
+    let filteredPrograms = allPrograms;
+    
+    // If we're filtering by regions on client-side, apply that filter
+    if (filters.regions && filters.regions.length > 0) {
+      filteredPrograms = filteredPrograms.filter(program => {
+        // Include programs that have at least one matching region or have "전국" (nationwide)
+        const isNationwide = program.geographicRegions.some(r => r === '전국');
+        const hasMatchingRegion = program.geographicRegions.some(r => 
+          filters.regions!.includes(r)
+        );
+        return isNationwide || hasMatchingRegion;
+      });
     }
     
-    // Get the items for this page
-    const paginatedItems = transformedItems.slice(startIndex, endIndex);
+    // If we're filtering by support areas on client-side, apply that filter
+    if (filters.supportAreas && filters.supportAreas.length > 0) {
+      filteredPrograms = filteredPrograms.filter(program => 
+        filters.supportAreas!.includes(program.supportArea)
+      );
+    }
     
-    // Log pagination info
-    console.log('===== PAGINATION INFO =====');
-    console.log(`Total items: ${totalCount}`);
-    console.log(`Items after filtering: ${transformedItems.length}`);
-    console.log(`Page: ${page}, Page size: ${pageSize}`);
-    console.log(`Returning ${paginatedItems.length} items for this page (${startIndex+1}-${endIndex})`);
+    // Filter for programs posted this week
+    if (filters.thisWeekOnly) {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      filteredPrograms = filteredPrograms.filter(program => {
+        if (!program.announcementDate) return false;
+        
+        try {
+          const announcementDate = new Date(program.announcementDate);
+          return announcementDate >= oneWeekAgo;
+        } catch (e) {
+          console.error('Failed to parse announcement date:', program.announcementDate, e);
+          return false;
+        }
+      });
+    }
+    
+    // Filter for programs ending soon (within 2 weeks)
+    if (filters.endingSoon) {
+      const now = new Date();
+      const twoWeeksLater = new Date();
+      twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+      
+      filteredPrograms = filteredPrograms.filter(program => {
+        if (!program.applicationDeadline || program.applicationDeadline === '정보 없음') return false;
+        
+        try {
+          const deadlineDate = new Date(program.applicationDeadline);
+          return deadlineDate >= now && deadlineDate <= twoWeeksLater;
+        } catch (e) {
+          console.error('Failed to parse deadline date for filtering:', program.applicationDeadline, e);
+          return false;
+        }
+      });
+    }
+    
+    // For pagination when we've client-side filtered
+    const hasClientFiltering = filters.regions?.length || 
+                              filters.supportAreas?.length || 
+                              filters.thisWeekOnly || 
+                              filters.endingSoon;
+    
+    let paginatedPrograms: GovSupportProgram[];
+    let effectiveTotal: number;
+    
+    if (hasClientFiltering) {
+      // If we've applied client-side filters, we need to paginate the filtered results
+      effectiveTotal = filteredPrograms.length;
+      const startIndex = (page - 1) * pageSize;
+      paginatedPrograms = filteredPrograms.slice(startIndex, startIndex + pageSize);
+    } else {
+      // If no client-side filtering, use the API's pagination (already done)
+      paginatedPrograms = filteredPrograms;
+      effectiveTotal = totalCount;
+    }
+    
+    console.log(`Returning ${paginatedPrograms.length} programs (page ${page}, total: ${effectiveTotal})`);
     
     return {
-      items: paginatedItems,
-      total: totalCount,
+      items: paginatedPrograms,
+      total: effectiveTotal,
       page,
       pageSize
     };
   } catch (error) {
     console.error('Error processing API response:', error);
-    // Return empty result on error
-    return { 
-      items: [], 
-      total: 0, 
-      page, 
-      pageSize,
-      error: 'Failed to process API response data'
+    // Return fallback data
+    return {
+      items: [{
+        id: 'error-1',
+        title: '데이터 처리 중 오류가 발생했습니다',
+        region: '전국',
+        geographicRegions: ['전국'],
+        supportArea: '기타',
+        supportAreaId: '09',
+        description: '데이터를 처리하는 과정에서 오류가 발생했습니다. 다시 시도해 주세요.',
+        applicationDeadline: '2025-12-31',
+        amount: '정보 없음',
+        isBookmarked: false
+      }],
+      total: 1,
+      page: 1,
+      pageSize: 1
     };
   }
 }

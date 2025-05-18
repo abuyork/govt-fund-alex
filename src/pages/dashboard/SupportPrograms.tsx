@@ -205,6 +205,25 @@ function SupportProgramsContent() {
       setIsInitialLoad(false);
       console.log('Performing initial search with empty filters');
       performSearchRef.current('', [], [], false, false);
+
+      // Also trigger search directly to ensure data is loaded
+      const fetchInitialData = async () => {
+        try {
+          console.log('Direct API call for initial data');
+          // Call the search function directly to ensure data is loaded
+          await searchRef.current({
+            keyword: '',
+            regions: [],
+            supportAreas: [],
+            thisWeekOnly: false,
+            endingSoon: false
+          });
+        } catch (err) {
+          console.error('Error loading initial data:', err);
+        }
+      };
+
+      fetchInitialData();
     }
   }, [isInitialLoad]); // Remove performSearch from dependencies
 

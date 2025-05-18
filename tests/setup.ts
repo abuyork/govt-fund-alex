@@ -64,4 +64,75 @@ beforeAll(() => {
 afterAll(() => {
   console.error = originalConsoleError;
   console.log = originalConsoleLog;
+});
+
+// Jest setup file
+import '@testing-library/jest-dom';
+
+// Mock import.meta.env for Vite environment variables 
+// This will be applied before any test is executed
+global.import = {};
+global.import.meta = {
+  env: {
+    VITE_BIZINFO_API_KEY: 'mock-api-key',
+    VITE_KAKAO_CLIENT_ID: 'mock-client-id',
+    VITE_KAKAO_ADMIN_KEY: 'mock-admin-key',
+    VITE_KAKAO_SENDER_KEY: 'mock-sender-key',
+    VITE_SUPABASE_URL: 'https://mock-supabase-url.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'mock-anon-key',
+    VITE_APP_URL: 'http://localhost:3000',
+    MODE: 'test',
+    DEV: true,
+    PROD: false
+  }
+};
+
+// Mock fetch API
+global.fetch = jest.fn(() => 
+  Promise.resolve({
+    json: () => Promise.resolve({}),
+    text: () => Promise.resolve(''),
+    ok: true,
+    status: 200,
+    statusText: 'OK'
+  })
+) as jest.Mock;
+
+// Mock localStorage
+class LocalStorageMock {
+  private store: Record<string, string> = {};
+
+  clear() {
+    this.store = {};
+  }
+
+  getItem(key: string) {
+    return this.store[key] || null;
+  }
+
+  setItem(key: string, value: string) {
+    this.store[key] = String(value);
+  }
+
+  removeItem(key: string) {
+    delete this.store[key];
+  }
+}
+
+// Set up localStorage mock
+Object.defineProperty(global, 'localStorage', {
+  value: new LocalStorageMock(),
+  writable: true
+});
+
+// Set test environment variables
+process.env.NODE_ENV = 'test';
+
+// Suppress console errors/warnings during tests
+global.console.error = jest.fn();
+global.console.warn = jest.fn();
+
+// Reset all mocks after each test
+afterEach(() => {
+  jest.clearAllMocks();
 }); 

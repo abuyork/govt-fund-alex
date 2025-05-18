@@ -12,7 +12,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:notification": "jest --coverage --testPathPattern=tests/unit/notification",
-    "test:working": "jest --config=jest.config.ts tests/unit/notificationMatchingService.test.ts tests/unit/notificationGenerationService.test.ts"
+    "test:working": "jest --config=jest.config.ts tests/unit/notificationMatchingService.test.ts tests/unit/notificationGenerationService.test.ts tests/unit/notificationTaskService.test.ts tests/integration/notificationFlow.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

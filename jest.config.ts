@@ -8,7 +8,9 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: 'tsconfig.jest.json'
+    }],
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   collectCoverage: true,

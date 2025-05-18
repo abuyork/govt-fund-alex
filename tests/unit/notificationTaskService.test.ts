@@ -6,6 +6,7 @@ import {
     updateTaskStatus
 } from '../../src/services/notificationTaskService';
 import { supabase } from '../../src/services/supabase';
+import { createErrorResponse, createNotFoundResponse, createSuccessResponse } from './mocks/supabaseMock';
 
 // Mock the Supabase module
 jest.mock('../../src/services/supabase', () => ({
@@ -28,7 +29,7 @@ describe('Notification Task Service', () => {
       // Mock supabase query to return success (table exists)
       const fromSpy = jest.fn().mockReturnThis();
       const selectSpy = jest.fn().mockReturnThis();
-      const limitSpy = jest.fn().mockResolvedValue({ data: [], error: null });
+      const limitSpy = jest.fn().mockResolvedValue(createSuccessResponse([]));
       
       mockSupabase.from.mockImplementation(() => ({
         select: selectSpy,
@@ -51,10 +52,7 @@ describe('Notification Task Service', () => {
       // Mock table check to fail (table doesn't exist)
       const fromSpy = jest.fn().mockReturnThis();
       const selectSpy = jest.fn().mockReturnThis();
-      const limitSpy = jest.fn().mockResolvedValue({ 
-        data: null, 
-        error: { code: 'PGRST116' } 
-      });
+      const limitSpy = jest.fn().mockResolvedValue(createNotFoundResponse());
       
       mockSupabase.from.mockImplementation(() => ({
         select: selectSpy,
@@ -66,7 +64,7 @@ describe('Notification Task Service', () => {
       selectSpy.mockReturnValue({ limit: limitSpy });
       
       // Mock RPC to create table
-      mockSupabase.rpc.mockResolvedValueOnce({ data: null, error: null });
+      mockSupabase.rpc.mockResolvedValueOnce(createSuccessResponse(null));
       
       const result = await initializeTaskSystem();
       
@@ -79,10 +77,7 @@ describe('Notification Task Service', () => {
       // Mock table check to fail (table doesn't exist)
       const fromSpy = jest.fn().mockReturnThis();
       const selectSpy = jest.fn().mockReturnThis();
-      const limitSpy = jest.fn().mockResolvedValue({ 
-        data: null, 
-        error: { code: 'PGRST116' } 
-      });
+      const limitSpy = jest.fn().mockResolvedValue(createNotFoundResponse());
       
       mockSupabase.from.mockImplementation(() => ({
         select: selectSpy,
@@ -95,8 +90,8 @@ describe('Notification Task Service', () => {
       
       // Mock RPC to fail
       mockSupabase.rpc
-        .mockResolvedValueOnce({ data: null, error: { message: 'RPC not found' } })
-        .mockResolvedValueOnce({ data: null, error: null }); // SQL succeeds
+        .mockResolvedValueOnce(createErrorResponse('RPC not found'))
+        .mockResolvedValueOnce(createSuccessResponse(null)); // SQL succeeds
       
       const result = await initializeTaskSystem();
       
@@ -123,10 +118,7 @@ describe('Notification Task Service', () => {
       const fromSpy = jest.fn().mockReturnThis();
       const insertSpy = jest.fn().mockReturnThis();
       const selectSpy = jest.fn().mockReturnThis();
-      const singleSpy = jest.fn().mockResolvedValue({
-        data: taskData,
-        error: null
-      });
+      const singleSpy = jest.fn().mockResolvedValue(createSuccessResponse(taskData));
       
       mockSupabase.from.mockImplementation(() => ({
         insert: insertSpy,
@@ -155,10 +147,7 @@ describe('Notification Task Service', () => {
       const fromSpy = jest.fn().mockReturnThis();
       const insertSpy = jest.fn().mockReturnThis();
       const selectSpy = jest.fn().mockReturnThis();
-      const singleSpy = jest.fn().mockResolvedValue({
-        data: null,
-        error: { code: 'ERROR', message: 'Database error' }
-      });
+      const singleSpy = jest.fn().mockResolvedValue(createErrorResponse('Database error', 'ERROR'));
       
       mockSupabase.from.mockImplementation(() => ({
         insert: insertSpy,
@@ -190,10 +179,7 @@ describe('Notification Task Service', () => {
       const fromSpy = jest.fn().mockReturnThis();
       const insertSpy = jest.fn().mockReturnThis();
       const selectSpy = jest.fn().mockReturnThis();
-      const singleSpy = jest.fn().mockResolvedValue({
-        data: taskData,
-        error: null
-      });
+      const singleSpy = jest.fn().mockResolvedValue(createSuccessResponse(taskData));
       
       mockSupabase.from.mockImplementation(() => ({
         insert: insertSpy,
@@ -232,10 +218,7 @@ describe('Notification Task Service', () => {
       const eqSpy = jest.fn().mockReturnThis();
       const orderSpy = jest.fn().mockReturnThis();
       const limitSpy = jest.fn().mockReturnThis();
-      const singleSpy = jest.fn().mockResolvedValue({
-        data: taskData,
-        error: null
-      });
+      const singleSpy = jest.fn().mockResolvedValue(createSuccessResponse(taskData));
       
       mockSupabase.from.mockImplementation(() => ({
         select: selectSpy,
@@ -267,34 +250,32 @@ describe('Notification Task Service', () => {
         created_at: new Date().toISOString()
       };
       
-      const fromSpy = jest.fn().mockReturnThis();
-      const selectSpy = jest.fn().mockReturnThis();
-      const eqStatusSpy = jest.fn().mockReturnThis();
-      const eqTypeSpy = jest.fn().mockReturnThis();
-      const orderSpy = jest.fn().mockReturnThis();
-      const limitSpy = jest.fn().mockReturnThis();
-      const singleSpy = jest.fn().mockResolvedValue({
-        data: taskData,
-        error: null
-      });
+      // Create a set of spies for the query chain
+      const query = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue(createSuccessResponse(taskData))
+      };
       
-      mockSupabase.from.mockImplementation(() => ({
-        select: selectSpy,
-        insert: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn()
-      } as any));
+      // Set up the supabase mock to return the query object
+      mockSupabase.from.mockReturnValue(query as any);
       
-      selectSpy.mockReturnValue({ eq: eqStatusSpy });
-      eqStatusSpy.mockReturnValue({ eq: eqTypeSpy, order: orderSpy });
-      eqTypeSpy.mockReturnValue({ order: orderSpy });
-      orderSpy.mockReturnValue({ limit: limitSpy });
-      limitSpy.mockReturnValue({ single: singleSpy });
-      
+      // Call the function we're testing
       const result = await getNextPendingTask('match');
       
-      expect(eqStatusSpy).toHaveBeenCalledWith('status', 'pending');
-      expect(eqTypeSpy).toHaveBeenCalledWith('task_type', 'match');
+      // Verify the correct query was built
+      expect(mockSupabase.from).toHaveBeenCalledWith('notification_tasks');
+      expect(query.select).toHaveBeenCalledWith('*');
+      expect(query.eq).toHaveBeenCalledWith('status', 'pending');
+      // The second call to .eq for task_type
+      expect(query.eq).toHaveBeenCalledWith('task_type', 'match');
+      expect(query.order).toHaveBeenCalledWith('created_at', { ascending: true });
+      expect(query.limit).toHaveBeenCalledWith(1);
+      expect(query.single).toHaveBeenCalled();
+      
+      // Verify the result is as expected
       expect(result).toEqual(taskData);
     });
     
@@ -304,10 +285,7 @@ describe('Notification Task Service', () => {
       const eqSpy = jest.fn().mockReturnThis();
       const orderSpy = jest.fn().mockReturnThis();
       const limitSpy = jest.fn().mockReturnThis();
-      const singleSpy = jest.fn().mockResolvedValue({
-        data: null,
-        error: { code: 'PGRST116' }
-      });
+      const singleSpy = jest.fn().mockResolvedValue(createNotFoundResponse());
       
       mockSupabase.from.mockImplementation(() => ({
         select: selectSpy,
@@ -331,7 +309,7 @@ describe('Notification Task Service', () => {
     test('should update task status successfully', async () => {
       const fromSpy = jest.fn().mockReturnThis();
       const updateSpy = jest.fn().mockReturnThis();
-      const eqSpy = jest.fn().mockResolvedValue({ data: null, error: null });
+      const eqSpy = jest.fn().mockResolvedValue(createSuccessResponse(null));
       
       mockSupabase.from.mockImplementation(() => ({
         update: updateSpy,
@@ -358,7 +336,7 @@ describe('Notification Task Service', () => {
     test('should set started_at when transitioning to processing', async () => {
       const fromSpy = jest.fn().mockReturnThis();
       const updateSpy = jest.fn().mockReturnThis();
-      const eqSpy = jest.fn().mockResolvedValue({ data: null, error: null });
+      const eqSpy = jest.fn().mockResolvedValue(createSuccessResponse(null));
       
       mockSupabase.from.mockImplementation(() => ({
         update: updateSpy,
@@ -380,7 +358,7 @@ describe('Notification Task Service', () => {
     test('should handle error message', async () => {
       const fromSpy = jest.fn().mockReturnThis();
       const updateSpy = jest.fn().mockReturnThis();
-      const eqSpy = jest.fn().mockResolvedValue({ data: null, error: null });
+      const eqSpy = jest.fn().mockResolvedValue(createSuccessResponse(null));
       
       mockSupabase.from.mockImplementation(() => ({
         update: updateSpy,

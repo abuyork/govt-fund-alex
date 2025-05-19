@@ -272,4 +272,46 @@ export async function handleKakaoLinkingCallback(): Promise<{ success: boolean; 
     console.error('Error in handleKakaoLinkingCallback:', error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Get users who should receive notifications at a specific time
+ * @param hour Hour in 24-hour format (0-23)
+ * @param minute Minute (0-59)
+ * @returns Array of user IDs that should be notified at the specified time
+ */
+export async function getUsersToNotifyAtTime(hour: number, minute: number): Promise<string[]> {
+  try {
+    // Input validation
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      console.error(`Invalid time parameters: hour=${hour}, minute=${minute}`);
+      return [];
+    }
+
+    // Format the time string to match the database format (HH:MM)
+    const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    console.log(`Checking for users with notification_time=${timeString}`);
+    
+    // Query users with matching notification time who have enabled notifications
+    // and have either new programs alert or deadline notification enabled
+    const { data, error } = await supabase
+      .from('user_notification_settings')
+      .select('user_id')
+      .eq('notification_time', timeString)
+      .eq('kakao_linked', true)
+      .or('new_programs_alert.eq.true,deadline_notification.eq.true');
+    
+    if (error) {
+      console.error('Error fetching users for time-based notification:', error);
+      return [];
+    }
+    
+    const userIds = data?.map(user => user.user_id) || [];
+    console.log(`Found ${userIds.length} users to notify at time ${timeString}`);
+    
+    return userIds;
+  } catch (error) {
+    console.error('Error in getUsersToNotifyAtTime:', error);
+    return [];
+  }
 } 
